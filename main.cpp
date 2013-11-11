@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <cstdlib> 
 
+
 #ifdef OSX
 #include <GLUT/glut.h>
 #include <OpenGL/glu.h>
@@ -34,6 +35,10 @@ bool is_adaptive = false;
 int num_patches;
 
 Viewport viewport;
+GLfloat light[] = {1, 0, 0, 1.0};
+float rotx = 0;
+float roty = 0;
+
 Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
 vector<Patch> all_meshes;
@@ -107,17 +112,27 @@ void parse_file(string name){
 void myReshape(int w, int h){
 	viewport.w = w;
 	viewport.h = h;
-	glViewport (0,0,viewport.w,viewport.h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
+	glMatrixMode(GL_MODELVIEW);
+	glViewport(0,0,viewport.w,viewport.h);
+	
 }
 void myKybdHndlr(int key, int x, int y){
 
-    if (key == GLUT_KEY_UP){}
-    else if (key == GLUT_KEY_DOWN){}	
-    else if (key == GLUT_KEY_LEFT){}	    
-    else if (key == GLUT_KEY_RIGHT){}
+    if (key == GLUT_KEY_UP){
+    	rotx += 10;
+    }
+    else if (key == GLUT_KEY_DOWN){
+    	rotx -= 10;
+    }	
+    else if (key == GLUT_KEY_LEFT){
+    	roty -= 10;
+    }	    
+    else if (key == GLUT_KEY_RIGHT){
+    	roty += 10;
+    }
     else 
         return;
     
@@ -145,23 +160,54 @@ void myKybdHndlr(unsigned char key, int x, int y){
 }
 
 void initScene(){
+	glViewport(0,0,viewport.w,viewport.h);
 
+    glMatrixMode(GL_PROJECTION);			       
+    glLoadIdentity();
+    gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
+
+/*	glLineWidth(0.5);
+	glColor3f(1,0,1);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, light);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, light);
+
+	glEnable(GL_LIGHT0);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_DEPTH_TEST);
+    glutPostRedisplay();*/
 }
 
 void myDisplay(){
 	glClear(GL_COLOR_BUFFER_BIT);		    // clear the color buffer
     glClear(GL_DEPTH_BUFFER_BIT);           // clear the depth buffer
 
-    glMatrixMode(GL_PROJECTION);			       
-    glLoadIdentity();				        // make sure transformation is "zero'd"
-    gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
+    glEnable(GL_DEPTH_TEST); 
+    //glMatrixMode(GL_PROJECTION);			       
+    //glLoadIdentity();				        // make sure transformation is "zero'd"
+    //gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
     
     glMatrixMode(GL_MODELVIEW);			    // indicate we are specifying camera transformations
     glLoadIdentity();
 
+    //glEnable(GL_LIGHTING);
+        //glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+	glColor3f(1,0,1);
+    glBegin(GL_QUADS);
+    glNormal3f(1,1,0);
+    glVertex3f( 0.5, 0.5,1.0);
+    glVertex3f( 10.5, 0.5,1.0);
+    glVertex3f( 10.5, 10.5,1.0);
+    glVertex3f( 0.5, 10.5,1.0);
+    
+    glEnd();
+
+    glRotatef(roty,0,1,0);
+    glRotatef(rotx,1,0,0);
 
     glFlush();
     glutSwapBuffers();	
+
+    cout << "wat?" <<endl;
 }
 
 int main(int argc, char** argv){
@@ -201,6 +247,7 @@ int main(int argc, char** argv){
     glutReshapeFunc(myReshape);	    // function to run when the window gets resized
     glutKeyboardFunc(myKybdHndlr);
     glutSpecialFunc(myKybdHndlr);
+    glutIdleFunc(myDisplay);
     glutMainLoop();				    // infinite loop that will keep drawing and resizing
     return 0;  
 }
