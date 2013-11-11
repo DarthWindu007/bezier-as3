@@ -30,7 +30,7 @@ class Viewport {
 };
 
 // ---------------------Global Variables -----------------------
-int step_size;
+float step_size;
 bool is_adaptive = false;
 int num_patches;
 
@@ -128,7 +128,7 @@ void parse_file(string name){
 
 //---------------------------------------------------
 
-Point* bezcurveinterp(Point* curve, int u){
+Point* bezcurveinterp(Point* curve, float u){
 	Point A = curve[0] * (1.0-u) + curve[1]*u;
 	Point B = curve[1] * (1.0-u) + curve[2]*u;
 	Point C = curve[2] * (1.0-u) + curve[3]*u;
@@ -148,7 +148,7 @@ Point* bezcurveinterp(Point* curve, int u){
 	return pd;
 }
 
-pointNormal bezPatchInterp(Patch p, int u, int v){
+pointNormal bezPatchInterp(Patch p, float u, float v){
 	Point* vcurve[4];
 	Point* ucurve[4];
 
@@ -182,12 +182,36 @@ pointNormal bezPatchInterp(Patch p, int u, int v){
 	temp[3] = p.patch[3][3];
 	ucurve[3] = bezcurveinterp(temp,v);
 	pointNormal pn;
+
+	Point vcurvet[4];
+	Point ucurvet[4];
+	vcurvet[0] = vcurve[0][0];
+	vcurvet[1] = vcurve[1][0];
+	vcurvet[2] = vcurve[2][0];
+	vcurvet[3] = vcurve[3][0];
+
+	ucurvet[0] = ucurve[0][0];
+	ucurvet[1] = ucurve[1][0];
+	ucurvet[2] = ucurve[2][0];
+	ucurvet[3] = ucurve[3][0];
+
+	Point* tempP[2];
+	tempP[0] = bezcurveinterp(vcurvet, v);
+	tempP[1] = bezcurveinterp(ucurvet, u);
+
+	vec3 d1 = vec3(tempP[0]->x,tempP[0]->y,tempP[0]->z);
+	vec3 d2 = vec3(tempP[1]->x,tempP[1]->y,tempP[1]->z);
+
+	vec3 cr = d2^d1;
+	cr.normalize();
+	Normal pnp = Normal(cr[0],cr[1],cr[2]);
+	cout << pn.p << "   ??????????????   " << pn.n << endl; 
 	return pn;
 }
 
 
 // given a patch, perform uniform subdivision 
-void subdividepatch(Patch p, int step){
+void subdividepatch(Patch p, float step){
 
 int iu,iv, numdiv, u,v,epsilon = 10; // epsilon value
 pointNormal pn;
@@ -201,6 +225,7 @@ for (iu = 0; iu < numdiv; iu++){
    	v = iv * step;
    	// evaluate surface
    	pn = bezPatchInterp(p, u, v);
+   	cout << pn.p << "   -------   " << pn.n << endl; 
     surfacePN.push_back(pn); 
    }
 }
@@ -297,8 +322,12 @@ void initScene(){
     glLightfv(GL_LIGHT0, GL_AMBIENT, light);
 
     for(int i =0; i < all_patches.size(); i++){
-    	bezPatchInterp(all_patches[i],step_size,step_size);
+    	subdividepatch(all_patches[i],step_size);
     	//exit(1);
+	}
+
+	for(int i =0; i < surfacePN.size(); i++){
+		cout << surfacePN[i].p << "       " << surfacePN[i].n << endl;;
 	}
 	glEnable(GL_LIGHT0);
     glEnable(GL_LIGHTING);
