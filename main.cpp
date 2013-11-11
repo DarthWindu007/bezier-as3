@@ -35,7 +35,7 @@ bool is_adaptive = false;
 int num_patches;
 
 Viewport viewport;
-GLfloat light[] = {1, 0, 0, 1.0};
+GLfloat light[] = {1, 1, 1, 1.0};
 float rotx = 0;
 float roty = 0;
 
@@ -122,16 +122,16 @@ void myReshape(int w, int h){
 void myKybdHndlr(int key, int x, int y){
 
     if (key == GLUT_KEY_UP){
-    	rotx += 10;
+    	rotx += 5;
     }
     else if (key == GLUT_KEY_DOWN){
-    	rotx -= 10;
+    	rotx -= 5;
     }	
     else if (key == GLUT_KEY_LEFT){
-    	roty -= 10;
+    	roty -= 5;
     }	    
     else if (key == GLUT_KEY_RIGHT){
-    	roty += 10;
+    	roty += 5;
     }
     else 
         return;
@@ -166,43 +166,53 @@ void initScene(){
     glLoadIdentity();
     gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
 
-/*	glLineWidth(0.5);
-	glColor3f(1,0,1);
+    glClear(GL_COLOR_BUFFER_BIT);		    // clear the color buffer
+    glClear(GL_DEPTH_BUFFER_BIT);           // clear the depth buffer
+
+/*   glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set background color to black and opaque
+   glClearDepth(1.0f);                   // Set background depth to farthest
+   glEnable(GL_DEPTH_TEST);   // Enable depth testing for z-culling
+   glDepthFunc(GL_LEQUAL);    // Set the type of depth-test
+   glShadeModel(GL_SMOOTH);   // Enable smooth shading
+   glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);  // Nice perspective corrections*/
+
+	glLineWidth(0.5);
+	glColor3f(1,1,1);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light);
     glLightfv(GL_LIGHT0, GL_AMBIENT, light);
 
 	glEnable(GL_LIGHT0);
     glEnable(GL_LIGHTING);
     glEnable(GL_DEPTH_TEST);
-    glutPostRedisplay();*/
+    glutPostRedisplay();
 }
 
 void myDisplay(){
-	glClear(GL_COLOR_BUFFER_BIT);		    // clear the color buffer
-    glClear(GL_DEPTH_BUFFER_BIT);           // clear the depth buffer
 
-    glEnable(GL_DEPTH_TEST); 
-    //glMatrixMode(GL_PROJECTION);			       
-    //glLoadIdentity();				        // make sure transformation is "zero'd"
-    //gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
-    
-    glMatrixMode(GL_MODELVIEW);			    // indicate we are specifying camera transformations
-    glLoadIdentity();
+   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear color and depth buffers
+   glMatrixMode(GL_MODELVIEW);     // To operate on model-view matrix
+ 
 
-    //glEnable(GL_LIGHTING);
-        //glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-	glColor3f(1,0,1);
+   glLoadIdentity();
+
+    glEnable(GL_LIGHTING);
+    glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    glRotatef(roty,0,1,0);
+    glRotatef(rotx,1,0,0);
+
     glBegin(GL_QUADS);
+    glColor3f(1,0,1);
     glNormal3f(1,1,0);
-    glVertex3f( 0.5, 0.5,1.0);
-    glVertex3f( 10.5, 0.5,1.0);
-    glVertex3f( 10.5, 10.5,1.0);
-    glVertex3f( 0.5, 10.5,1.0);
+    glVertex3f( 0.5, 0.5,-10.0);
+    glVertex3f( 1.5, 0.5,-10.0);
+    glVertex3f( 1.5, 1.5,-10.0);
+    glVertex3f( 0.5, 1.5,-10.0);
     
     glEnd();
 
-    glRotatef(roty,0,1,0);
-    glRotatef(rotx,1,0,0);
+
+
+
 
     glFlush();
     glutSwapBuffers();	
@@ -242,12 +252,13 @@ int main(int argc, char** argv){
     glutInitWindowPosition(0,0);      // x-,y- coords of the topLeft of new window.
     glutCreateWindow(argv[0]);        //} name of window.
 
-    initScene();
+    
     glutDisplayFunc(myDisplay);	    // function to run when its time to draw something
     glutReshapeFunc(myReshape);	    // function to run when the window gets resized
     glutKeyboardFunc(myKybdHndlr);
     glutSpecialFunc(myKybdHndlr);
-    glutIdleFunc(myDisplay);
+    initScene();
+    //glutIdleFunc(myDisplay);
     glutMainLoop();				    // infinite loop that will keep drawing and resizing
     return 0;  
 }
