@@ -40,6 +40,7 @@ float rotx = 0;
 float roty = 0;
 float transx = 0;
 float transy = 0;
+float zoom = 1;
 
 Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
@@ -156,9 +157,13 @@ void myKybdHndlr(int key, int x, int y){
 void myKybdHndlr(unsigned char key, int x, int y){
 	if (key == ' ')
         exit(0);
-    else if (key == '+'){}
+    else if (key == '+'){
+    	zoom += 0.05;
+    }
 
-    else if (key == '-'){}
+    else if (key == '-'){
+    	zoom -= 0.05;
+    }
 	
 	else if (key == 's'){}
 	
@@ -216,6 +221,7 @@ void myDisplay(){
     glRotatef(rotx,1,0,0);
     glTranslatef(transx,0,0);
     glTranslatef(0,transy,0);
+    glScalef(1, 1, zoom);
 
     glBegin(GL_QUADS);
     glColor3f(1,0,1);
