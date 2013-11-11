@@ -121,7 +121,7 @@ void myReshape(int w, int h){
 	glViewport(0,0,viewport.w,viewport.h);
 	
 }
-void myKybdHndlr_2(int key, int x, int y){
+void myKybdHndlr(int key, int x, int y){
 
 	int modifier = glutGetModifiers();
     if (key == GLUT_KEY_UP){
