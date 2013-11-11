@@ -186,6 +186,26 @@ pointNormal bezPatchInterp(Patch p, int u, int v){
 }
 
 
+// given a patch, perform uniform subdivision 
+void subdividepatch(Patch p, int step){
+
+int iu,iv, numdiv, u,v,epsilon = 10; // epsilon value
+pointNormal pn;
+// compute how many subdivisions there # are for this step size
+numdiv = ((1 + epsilon) / step);
+// for each parametric value of u for (iu = 0 to numdiv)
+for (iu = 0; iu < numdiv; iu++){
+   u = iu * step;
+// for each parametric value of v for (iv = 0 to numdiv)
+   for (iv = 0; iv < numdiv; iv++){
+   	v = iv * step;
+   	// evaluate surface
+   	pn = bezPatchInterp(p, u, v);
+    surfacePN.push_back(pn); 
+   }
+}
+
+}
 
 void myReshape(int w, int h){
 	viewport.w = w;
