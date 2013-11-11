@@ -38,6 +38,8 @@ Viewport viewport;
 GLfloat light[] = {1, 1, 1, 1.0};
 float rotx = 0;
 float roty = 0;
+float transx = 0;
+float transy = 0;
 
 Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
@@ -121,17 +123,30 @@ void myReshape(int w, int h){
 }
 void myKybdHndlr(int key, int x, int y){
 
+	int modifier = glutGetModifiers();
     if (key == GLUT_KEY_UP){
-    	rotx += 5;
+    	if(modifier == 1)
+    		transy += 1;
+    	else
+    		rotx += 2.5;
     }
     else if (key == GLUT_KEY_DOWN){
-    	rotx -= 5;
+    	if(modifier == 1)
+    		transy -= 1;
+    	else
+    		rotx -= 2.5;
     }	
     else if (key == GLUT_KEY_LEFT){
-    	roty -= 5;
+    	if(modifier == 1)
+    		transx -= 1;
+    	else
+    		roty += 2.5;
     }	    
     else if (key == GLUT_KEY_RIGHT){
-    	roty += 5;
+    	if(modifier == 1)
+    		transx += 1;
+    	else
+    		roty -= 2.5;
     }
     else 
         return;
@@ -199,6 +214,8 @@ void myDisplay(){
     glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
     glRotatef(roty,0,1,0);
     glRotatef(rotx,1,0,0);
+    glTranslatef(transx,0,0);
+    glTranslatef(0,transy,0);
 
     glBegin(GL_QUADS);
     glColor3f(1,0,1);
