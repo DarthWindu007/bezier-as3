@@ -46,6 +46,22 @@ Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
 vector<Patch> all_meshes;
 
+
+
+struct pointNormal
+{
+	Point p;
+	Normal n;
+};
+
+struct pointDeriv
+{
+	Point p;
+	float d;
+};
+
+vector<pointNormal> surfacePN;
+
 //--------------------------------------------------------------
 
 
@@ -111,6 +127,65 @@ void parse_file(string name){
 }
 
 //---------------------------------------------------
+
+Point* bezcurveinterp(Point* curve, int u){
+	Point A = curve[0] * (1.0-u) + curve[1]*u;
+	Point B = curve[1] * (1.0-u) + curve[2]*u;
+	Point C = curve[2] * (1.0-u) + curve[3]*u;
+
+	Point D = A * (1.0-u) + B*u;
+	Point E = B * (1.0-u) + C*u;
+
+	Point p = D * (1.0-u) + E*u;
+
+	Vector t = 3*(E-D);
+	Point dPdu = Point(t.x,t.y,t.z);
+
+	Point* pd = new Point[2];
+	pd[0] = p;
+	pd[1] = dPdu;
+	cout << p << "    " << dPdu << endl;
+	return pd;
+}
+
+pointNormal bezPatchInterp(Patch p, int u, int v){
+	Point* vcurve[4];
+	Point* ucurve[4];
+
+	vcurve[0] = bezcurveinterp(p.patch[0],u);
+	vcurve[1] = bezcurveinterp(p.patch[1],u);
+	vcurve[2] = bezcurveinterp(p.patch[2],u);
+	vcurve[3] = bezcurveinterp(p.patch[3],u);
+
+	Point temp[4];
+	temp[0] = p.patch[0][0];
+	temp[1] = p.patch[1][0];
+	temp[2] = p.patch[2][0];
+	temp[3] = p.patch[3][0];
+	ucurve[0] = bezcurveinterp(temp,v);
+
+	temp[0] = p.patch[0][1];
+	temp[1] = p.patch[1][1];
+	temp[2] = p.patch[2][1];
+	temp[3] = p.patch[3][1];
+	ucurve[1] = bezcurveinterp(temp,v);
+
+	temp[0] = p.patch[0][2];
+	temp[1] = p.patch[1][2];
+	temp[2] = p.patch[2][2];
+	temp[3] = p.patch[3][2];
+	ucurve[2] = bezcurveinterp(temp,v);
+
+	temp[0] = p.patch[0][3];
+	temp[1] = p.patch[1][3];
+	temp[2] = p.patch[2][3];
+	temp[3] = p.patch[3][3];
+	ucurve[3] = bezcurveinterp(temp,v);
+	pointNormal pn;
+	return pn;
+}
+
+
 
 void myReshape(int w, int h){
 	viewport.w = w;
@@ -201,6 +276,10 @@ void initScene(){
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light);
     glLightfv(GL_LIGHT0, GL_AMBIENT, light);
 
+    for(int i =0; i < all_patches.size(); i++){
+    	bezPatchInterp(all_patches[i],step_size,step_size);
+    	//exit(1);
+	}
 	glEnable(GL_LIGHT0);
     glEnable(GL_LIGHTING);
     glEnable(GL_DEPTH_TEST);
