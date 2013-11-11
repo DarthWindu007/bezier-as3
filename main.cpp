@@ -122,16 +122,16 @@ void myReshape(int w, int h){
 void myKybdHndlr(int key, int x, int y){
 
     if (key == GLUT_KEY_UP){
-    	rotx += 5;
+    	rotx -= 5;
     }
     else if (key == GLUT_KEY_DOWN){
-    	rotx -= 5;
+    	rotx += 5;
     }	
     else if (key == GLUT_KEY_LEFT){
-    	roty -= 5;
+    	roty += 5;
     }	    
     else if (key == GLUT_KEY_RIGHT){
-    	roty += 5;
+    	roty -= 5;
     }
     else 
         return;
