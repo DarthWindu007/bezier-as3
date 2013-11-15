@@ -10,6 +10,9 @@
 #include <iostream>
 #include <stdlib.h>
 #include <cstdlib> 
+#include <list>
+#include <unistd.h>
+
 
 
 #ifdef OSX
@@ -23,19 +26,42 @@
 
 using namespace std;
 
+struct pointNormal
+{
+	Point point;
+	Normal normal;
+	pointNormal(Point pp, Normal nn): point(pp), normal(nn) {}
+};
+
 class Viewport;
 class Viewport {
   public:
     int w, h; // width and height
+};
+class ParametricPoint {
+public:
+	ParametricPoint(float u, float v);
+	float u,v;
+};
+ParametricPoint::ParametricPoint(float u, float v) {
+	this->u = u;
+	this->v = v;
+}
+class Triangle {
+public:
+	Triangle(pointNormal p1, ParametricPoint uv1, pointNormal p2, ParametricPoint uv2, pointNormal p3, ParametricPoint uv3);
+	vector<pointNormal> points;
+	vector<ParametricPoint> parametrics;
 };
 
 // ---------------------Global Variables -----------------------
 float step_size;
 bool is_adaptive = false;
 int num_patches;
-
+bool uniform =true;
 Viewport viewport;
-GLfloat light[] = {1, 1, 1, 1.0};
+GLfloat light_d[] = {0.2, 0.1, 1, 1.0};
+GLfloat light_pos[] = {1.0, 1.0, 1.0, 0.0};
 float rotx = 0;
 float roty = 0;
 float transx = 0;
@@ -46,21 +72,9 @@ Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
 vector<Patch> all_meshes;
 
+vector <vector< vector<pointNormal> > > allOutputPoints;	
 
 
-struct pointNormal
-{
-	Point p;
-	Normal n;
-};
-
-struct pointDeriv
-{
-	Point p;
-	float d;
-};
-
-vector<pointNormal> surfacePN;
 
 //--------------------------------------------------------------
 
@@ -74,10 +88,10 @@ void parse_file(string name){
     	cout << "Unable to open file" << endl;
   	} else {
   		string line;
-  		while(inpfile.good()){
+  		while(inpfile.good()){ // if the file is good
   			vector<string> splitline;
-  			string buf;
-  			getline(inpfile,line);
+  			string buf; 
+  			getline(inpfile,line); // gets the line
   			stringstream ss(line);
   			while(ss >> buf){
   				splitline.push_back(buf);
@@ -93,31 +107,40 @@ void parse_file(string name){
 				//cout << splitline[0].c_str() << endl;
 			} else if(splitline.size() == 12){
 				if(count_curve==0){
-					newPatch.patch[0][0] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[0][1] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[0][2] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[0][3] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
+					vector<Point> curve1;
+					curve1.push_back(Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str())));
+					curve1.push_back(Point(atof(splitline[3].c_str()),atof(splitline[4].c_str()), atof(splitline[5].c_str())));
+					curve1.push_back(Point(atof(splitline[6].c_str()),atof(splitline[7].c_str()), atof(splitline[8].c_str())));
+					curve1.push_back(Point(atof(splitline[9].c_str()),atof(splitline[10].c_str()), atof(splitline[11].c_str())));
+					newPatch.patch.push_back(curve1);
 					count_curve++;
 				} else if(count_curve==1){
-					newPatch.patch[1][0] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[1][1] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[1][2] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[1][3] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
+					vector<Point> curve2;
+					curve2.push_back(Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str())));
+					curve2.push_back(Point(atof(splitline[3].c_str()),atof(splitline[4].c_str()), atof(splitline[5].c_str())));
+					curve2.push_back(Point(atof(splitline[6].c_str()),atof(splitline[7].c_str()), atof(splitline[8].c_str())));
+					curve2.push_back(Point(atof(splitline[9].c_str()),atof(splitline[10].c_str()), atof(splitline[11].c_str())));
+					newPatch.patch.push_back(curve2);
 					count_curve++;
 				} else if(count_curve==2){
-					newPatch.patch[2][0] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[2][1] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[2][2] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[2][3] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
+					vector<Point> curve3;
+					curve3.push_back(Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str())));
+					curve3.push_back(Point(atof(splitline[3].c_str()),atof(splitline[4].c_str()), atof(splitline[5].c_str())));
+					curve3.push_back(Point(atof(splitline[6].c_str()),atof(splitline[7].c_str()), atof(splitline[8].c_str())));
+					curve3.push_back(Point(atof(splitline[9].c_str()),atof(splitline[10].c_str()), atof(splitline[11].c_str())));
+					newPatch.patch.push_back(curve3);
 					count_curve++;
 				} else if(count_curve==3){
-					newPatch.patch[3][0] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[3][1] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[3][2] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
-					newPatch.patch[3][3] = Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str()));
+					vector<Point> curve4;
+					curve4.push_back(Point(atof(splitline[0].c_str()),atof(splitline[1].c_str()), atof(splitline[2].c_str())));
+					curve4.push_back(Point(atof(splitline[3].c_str()),atof(splitline[4].c_str()), atof(splitline[5].c_str())));
+					curve4.push_back(Point(atof(splitline[6].c_str()),atof(splitline[7].c_str()), atof(splitline[8].c_str())));
+					curve4.push_back(Point(atof(splitline[9].c_str()),atof(splitline[10].c_str()), atof(splitline[11].c_str())));
+					newPatch.patch.push_back(curve4);
 					count_curve=0;
 
 					all_patches.push_back(newPatch);
+					newPatch = Patch();
 					//newPatch.toString();
 					//cout << endl;
 				}
@@ -128,108 +151,120 @@ void parse_file(string name){
 
 //---------------------------------------------------
 
-Point* bezcurveinterp(Point* curve, float u){
-	Point A = curve[0] * (1.0-u) + curve[1]*u;
-	Point B = curve[1] * (1.0-u) + curve[2]*u;
-	Point C = curve[2] * (1.0-u) + curve[3]*u;
+Point bezcurveinterp(vector<Point> curve, float u){
+	vector<Point> iter1;
+	vector<Point> iter2;
+	vector<Point> iter3;
 
-	Point D = A * (1.0-u) + B*u;
-	Point E = B * (1.0-u) + C*u;
-
-	Point p = D * (1.0-u) + E*u;
-
-	Vector t = 3*(E-D);
-	Point dPdu = Point(t.x,t.y,t.z);
-
-	Point* pd = new Point[2];
-	pd[0] = p;
-	pd[1] = dPdu;
-	cout << p << "    " << dPdu << endl;
-	return pd;
+	for(int i = 0; i < curve.size()-1; i++){
+		//cout << curve[i]*(1.0f-u)+curve[i+1]*u << endl;
+		iter1.push_back(curve[i]*(1.0f-u)+curve[i+1]*u);
+	}
+	//exit(1);
+	for(int i = 0; i < iter1.size()-1; i++){
+		iter2.push_back(iter1[i]*(1.0f-u)+iter1[i+1]*u);
+		//cout << iter1[i]*(1.0f-u)+iter1[i+1]*u << endl;;
+	}
+	//exit(1);
+	for(int i = 0; i < iter2.size()-1; i++){
+		Point p = iter2[i]*(1.0f-u)+iter2[i+1]*u;
+		Vector n = 3*(iter2[i+1]-iter2[i]);
+		p.vn = n;
+		iter3.push_back(p);
+		//cout << iter2[i]*(1.0f-u)+iter2[i+1]*u << endl;
+	}
+	//exit(1);
+    //cout << "bez curve interp return value:     " << iter3.front().x << iter3.front().y << iter3.front().z << "---------" << endl;
+    //cout << endl;
+    //exit(1);
+	return iter3.front();
 }
 
-pointNormal bezPatchInterp(Patch p, float u, float v){
-	Point* vcurve[4];
-	Point* ucurve[4];
+Point bezpatchinterp(Patch p, float u, float v){
+/*	p.toString();
+	exit(1);*/
+	vector<Point> vcurve;
+	vcurve.push_back(bezcurveinterp(p.patch[0],u));
+	vcurve.push_back(bezcurveinterp(p.patch[1],u));
+	vcurve.push_back(bezcurveinterp(p.patch[2],u));
+	vcurve.push_back(bezcurveinterp(p.patch[3],u));
+	//exit(1);
+	vector<Point> ucurve;
+	vector<Point> ucurve1;
+	vector<Point> ucurve2;
+	vector<Point> ucurve3;
+	vector<Point> ucurve4;
 
-	vcurve[0] = bezcurveinterp(p.patch[0],u);
-	vcurve[1] = bezcurveinterp(p.patch[1],u);
-	vcurve[2] = bezcurveinterp(p.patch[2],u);
-	vcurve[3] = bezcurveinterp(p.patch[3],u);
+    ucurve1.push_back(p.patch[0][0]);
+    ucurve1.push_back(p.patch[1][0]);
+    ucurve1.push_back(p.patch[2][0]);
+    ucurve1.push_back(p.patch[3][0]);
+    ucurve.push_back(bezcurveinterp(ucurve1,v));
+    ucurve2.push_back(p.patch[0][1]);
+    ucurve2.push_back(p.patch[1][1]);
+    ucurve2.push_back(p.patch[2][1]);
+    ucurve2.push_back(p.patch[3][1]);
+    ucurve.push_back(bezcurveinterp(ucurve2,v));
+    ucurve3.push_back(p.patch[0][2]);
+    ucurve3.push_back(p.patch[1][2]);
+    ucurve3.push_back(p.patch[2][2]);
+    ucurve3.push_back(p.patch[3][2]);
+    ucurve.push_back(bezcurveinterp(ucurve3,v));
+    ucurve4.push_back(p.patch[0][3]);
+    ucurve4.push_back(p.patch[1][3]);
+    ucurve4.push_back(p.patch[2][3]);
+    ucurve4.push_back(p.patch[3][3]);
+    ucurve.push_back(bezcurveinterp(ucurve4,v));
 
-	Point temp[4];
-	temp[0] = p.patch[0][0];
-	temp[1] = p.patch[1][0];
-	temp[2] = p.patch[2][0];
-	temp[3] = p.patch[3][0];
-	ucurve[0] = bezcurveinterp(temp,v);
-
-	temp[0] = p.patch[0][1];
-	temp[1] = p.patch[1][1];
-	temp[2] = p.patch[2][1];
-	temp[3] = p.patch[3][1];
-	ucurve[1] = bezcurveinterp(temp,v);
-
-	temp[0] = p.patch[0][2];
-	temp[1] = p.patch[1][2];
-	temp[2] = p.patch[2][2];
-	temp[3] = p.patch[3][2];
-	ucurve[2] = bezcurveinterp(temp,v);
-
-	temp[0] = p.patch[0][3];
-	temp[1] = p.patch[1][3];
-	temp[2] = p.patch[2][3];
-	temp[3] = p.patch[3][3];
-	ucurve[3] = bezcurveinterp(temp,v);
-	pointNormal pn;
-
-	Point vcurvet[4];
-	Point ucurvet[4];
-	vcurvet[0] = vcurve[0][0];
-	vcurvet[1] = vcurve[1][0];
-	vcurvet[2] = vcurve[2][0];
-	vcurvet[3] = vcurve[3][0];
-
-	ucurvet[0] = ucurve[0][0];
-	ucurvet[1] = ucurve[1][0];
-	ucurvet[2] = ucurve[2][0];
-	ucurvet[3] = ucurve[3][0];
-
-	Point* tempP[2];
-	tempP[0] = bezcurveinterp(vcurvet, v);
-	tempP[1] = bezcurveinterp(ucurvet, u);
-
-	vec3 d1 = vec3(tempP[0]->x,tempP[0]->y,tempP[0]->z);
-	vec3 d2 = vec3(tempP[1]->x,tempP[1]->y,tempP[1]->z);
-
-	vec3 cr = d2^d1;
-	cr.normalize();
-	Normal pnp = Normal(cr[0],cr[1],cr[2]);
-	cout << pn.p << "   ??????????????   " << pn.n << endl; 
-	return pn;
+    //cout << ucurve[0] << endl;
+	Point point = bezcurveinterp(vcurve,v);
+	//cout << point << endl;
+	Point normal = bezcurveinterp(ucurve,u);
+	Vector v1 = Vector(normal.x,normal.y,normal.z);
+	Vector v2 = Vector(point.x,point.y,point.z);
+	Vector n = (normal.vn^point.vn).norm();
+	point.vn = n;
+	//exit(1);
+	return point;
 }
 
+void adaptive(Patch p){
+
+}
 
 // given a patch, perform uniform subdivision 
-void subdividepatch(Patch p, float step){
+void subdividepatch(Patch p){
+	float u,v;
+	Patch temp;
+	int polygons = floor(1.0f/step_size)+1;
 
-int iu,iv, numdiv, u,v,epsilon = 10; // epsilon value
-pointNormal pn;
-// compute how many subdivisions there # are for this step size
-numdiv = ((1 + epsilon) / step);
-// for each parametric value of u for (iu = 0 to numdiv)
-for (iu = 0; iu < numdiv; iu++){
-   u = iu * step;
-// for each parametric value of v for (iv = 0 to numdiv)
-   for (iv = 0; iv < numdiv; iv++){
-   	v = iv * step;
-   	// evaluate surface
-   	pn = bezPatchInterp(p, u, v);
-   	cout << pn.p << "   -------   " << pn.n << endl; 
-    surfacePN.push_back(pn); 
-   }
-}
-
+	for(int i = 0; i < polygons; i++){
+		u = min(1.0f,i*step_size);
+		vector<Point> curve;
+		if(u == 1.0f) continue;
+		for(int j = 0; j < polygons; j++){
+			v = min(1.0f, j*step_size);
+			if(v==1.0f)
+				continue;
+			Point interp = bezpatchinterp(p,u,v);
+			curve.push_back(interp);
+		}
+		Point interp = bezpatchinterp(p,u,1.0f);
+		curve.push_back(interp);
+		temp.patch.push_back(curve);		
+	}
+	vector<Point> curve2;
+	for(int k = 0; k < polygons; k++){
+		v = k*step_size;
+		if(v==1.0f) continue;
+		Point interp = bezpatchinterp(p,1.0f,v);
+		curve2.push_back(interp);
+	}
+	Point interp = bezpatchinterp(p,1.0f,1.0f);
+	curve2.push_back(interp);
+	temp.patch.push_back(curve2);
+	all_meshes.push_back(temp);
+	return;
 }
 
 void myReshape(int w, int h){
@@ -299,82 +334,95 @@ void myKybdHndlr(unsigned char key, int x, int y){
     glutPostRedisplay();
 }
 
+void drawPolygons(){
+	for(int i = 0; i < all_meshes.size(); i++){
+		Patch p = all_meshes[i];
+		for(int j = 0; j < p.patch.size()-1; j++){
+			for(int c = 0; c < p.patch.size()-1; c++){
+				glBegin(GL_QUADS);
+				Point p1 = p.patch[j][c];
+				Point p2 = p.patch[j+1][c];
+				Point p3 = p.patch[j+1][c+1];
+				Point p4 = p.patch[j][c+1];
+
+				glNormal3f(p1.vn.x,p1.vn.y,p1.vn.z);
+				glVertex3f(p1.x,p1.y,p1.z);
+				glNormal3f(p2.vn.x,p2.vn.y,p2.vn.z);
+				glVertex3f(p2.x,p2.y,p2.z);
+				glNormal3f(p3.vn.x,p3.vn.y,p3.vn.z);
+				glVertex3f(p3.x,p3.y,p3.z);
+				glNormal3f(p4.vn.x,p4.vn.y,p4.vn.z);
+				glVertex3f(p4.x,p4.y,p4.z);
+
+				glEnd();
+			}
+		}
+	}
+}
+
 void initScene(){
-	glViewport(0,0,viewport.w,viewport.h);
 
-    glMatrixMode(GL_PROJECTION);			       
-    glLoadIdentity();
-    gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_d);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, light_d);
+    glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+    glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_DEPTH_TEST);
 
-    glClear(GL_COLOR_BUFFER_BIT);		    // clear the color buffer
-    glClear(GL_DEPTH_BUFFER_BIT);           // clear the depth buffer
-
-/*   glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set background color to black and opaque
-   glClearDepth(1.0f);                   // Set background depth to farthest
-   glEnable(GL_DEPTH_TEST);   // Enable depth testing for z-culling
-   glDepthFunc(GL_LEQUAL);    // Set the type of depth-test
-   glShadeModel(GL_SMOOTH);   // Enable smooth shading
-   glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);  // Nice perspective corrections*/
+	//glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	glLineWidth(0.5);
-	glColor3f(1,1,1);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, light);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, light);
+    glColor3f(1,1,1);
 
-    for(int i =0; i < all_patches.size(); i++){
-    	subdividepatch(all_patches[i],step_size);
-    	//exit(1);
-	}
+    for(int i = 0; i < all_patches.size(); i++){
+    	Patch p;
+    	p.patch = (all_patches[i]).patch;
+    	if(is_adaptive){
+    		adaptive(p);
+    		continue;
+    	}
+    	subdividepatch(p);
+    }
 
-	for(int i =0; i < surfacePN.size(); i++){
-		cout << surfacePN[i].p << "       " << surfacePN[i].n << endl;;
-	}
-	glEnable(GL_LIGHT0);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_DEPTH_TEST);
-    glutPostRedisplay();
+	myReshape(viewport.w,viewport.h);
+
+
+
 }
 
 void myDisplay(){
 
-   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear color and depth buffers
-   glMatrixMode(GL_MODELVIEW);     // To operate on model-view matrix
- 
-
-   glLoadIdentity();
+    glClear(GL_COLOR_BUFFER_BIT);               
+	glClear(GL_DEPTH_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION);			       
+    glLoadIdentity();
+	gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
+	glMatrixMode(GL_MODELVIEW);                  
+	glLoadIdentity(); 
 
     glEnable(GL_LIGHTING);
     glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    glShadeModel(GL_FLAT);
+    
     glRotatef(roty,0,1,0);
     glRotatef(rotx,1,0,0);
-    glTranslatef(transx,0,0);
-    glTranslatef(0,transy,0);
-    glScalef(1, 1, zoom);
+    glTranslatef(transx,transy,zoom);
+    //glTranslatef(0,transy,0);
+    //glTranslatef(0,0,zoom);
+    //glScalef(1, 1, zoom);
 
-    glBegin(GL_QUADS);
-    glColor3f(1,0,1);
-    glNormal3f(1,1,0);
-    glVertex3f( 0.5, 0.5,-10.0);
-    glVertex3f( 1.5, 0.5,-10.0);
-    glVertex3f( 1.5, 1.5,-10.0);
-    glVertex3f( 0.5, 1.5,-10.0);
-    
-    glEnd();
-
-
-
-
+	drawPolygons();
 
     glFlush();
     glutSwapBuffers();	
 
-    cout << "wat?" <<endl;
 }
 
 int main(int argc, char** argv){
 	string file_name;
 	if(argc > 2){
 		file_name = argv[1];
+
 		step_size = atof(argv[2]);
 		if(argc >3){
 			is_adaptive = string(argv[3])=="-a";
@@ -385,15 +433,14 @@ int main(int argc, char** argv){
 	}
 
 	parse_file(file_name);
-
-	//cout << num_patches << endl;
-	for(int i =0; i < num_patches; i++){
-		all_patches[i].toString();
+	for (int k = 0; k < all_patches.size(); k++){
+		all_patches[k].toString();
 		cout << endl;
-		//cout << "going here?" <<endl;
+	}
+	if(uniform){
+		step_size = 1.0f/ceil(1.0f/step_size);
 	}
 
-	//cout << "wat?" << endl;
 
     viewport.w = 600;
     viewport.h = 600;
@@ -406,6 +453,7 @@ int main(int argc, char** argv){
     
     glutDisplayFunc(myDisplay);	    // function to run when its time to draw something
     glutReshapeFunc(myReshape);	    // function to run when the window gets resized
+    
     glutKeyboardFunc(myKybdHndlr);
     glutSpecialFunc(myKybdHndlr);
     initScene();

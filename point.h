@@ -6,6 +6,7 @@
 class Point {
 public:
 	float x,y,z;
+	Vector vn;
 	Point();
 	Point(float,float,float);
 	Point operator+(Point);

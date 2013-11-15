@@ -9,11 +9,14 @@ Point::Point(){
 	this->x=0;
 	this->y=0;
 	this->z=0;
+	this->vn = Vector();
 }
 Point::Point(float nx, float ny, float nz){
 	this->x=nx;
 	this->y=ny;
-	this->z=nz;  
+	this->z=nz;
+	Vector v = Vector(nx,ny,nz);
+	this->vn=  v.norm();
 }
 
 Point Point::operator+(Point n2){
