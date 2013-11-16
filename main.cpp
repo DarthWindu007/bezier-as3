@@ -320,9 +320,13 @@ void myKybdHndlr(unsigned char key, int x, int y){
     	zoom -= 0.05;
     }
 	
-	else if (key == 's'){}
+	else if (key == 's'){
+		is_smooth == false;
+	}
 	
-	else if (key == 'w'){}
+	else if (key == 'w'){
+		is_wireframe == false;
+	}
     
     else if (key == 'h'){}
 
@@ -384,6 +388,8 @@ void initScene(){
     	subdividepatch(p);
     }
 
+    drawPolygons();
+
 	myReshape(viewport.w,viewport.h);
 
 
@@ -397,6 +403,7 @@ void myDisplay(){
     glMatrixMode(GL_PROJECTION);			       
     glLoadIdentity();
 	gluPerspective(60.0f,(GLfloat)viewport.w/(GLfloat)viewport.h,0.1f,100.0f);
+	
 	glMatrixMode(GL_MODELVIEW);                  
 	glLoadIdentity(); 
 
