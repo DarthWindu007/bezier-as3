@@ -59,6 +59,8 @@ float step_size;
 bool is_adaptive = false;
 int num_patches;
 bool uniform =true;
+bool is_wireframe = false;
+bool is_smooth = false;
 Viewport viewport;
 GLfloat light_d[] = {0.2, 0.1, 1, 1.0};
 GLfloat light_pos[] = {1.0, 1.0, 1.0, 0.0};
