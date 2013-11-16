@@ -59,7 +59,7 @@ bool is_wireframe = false;
 bool is_smooth = false;
 bool is_hidden = false;
 Viewport viewport;
-GLfloat light_d[] = {1.0, 0.0, 1, 1.0};
+GLfloat light_d[] = {0.8, 0.0, 1, 1.0};
 GLfloat light_pos[] = {1.0, 1.0, 1.0, 0.0};
 float rotx = 0;
 float roty = 0;
@@ -485,6 +485,28 @@ void drawPolygons(){
 		}
 	}
 }
+void drawNormalVertex(triPoint tp){
+	glNormal3f(tp.p.vn.x,tp.p.vn.y,tp.p.vn.z);
+	glVertex3f(tp.p.x,tp.p.y,tp.p.z);
+}
+
+void draw(tri t){
+	glBegin(GL_TRIANGLES);
+
+	drawNormalVertex(t.p1);
+	drawNormalVertex(t.p2);
+	drawNormalVertex(t.p3);
+
+	glEnd();
+
+}
+
+void drawTriangles(){
+	for(int i = 0; i < all_triangles.size(); i++){
+		tri shape = all_triangles[i];
+		draw(shape);
+	}
+}
 
 void initScene(){
 
@@ -498,7 +520,7 @@ void initScene(){
 	//glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	glLineWidth(1.0);
-    glColor3f(1,1,1);
+    glColor3f(0.8f,0.1f,0.1f);
 
     for(int i = 0; i < all_patches.size(); i++){
     	Patch p;
@@ -533,33 +555,54 @@ void myDisplay(){
         glTranslatef(transx,transy,zoom);
     glRotatef(roty,0,1,0);
     glRotatef(rotx,1,0,0);
-    if(!is_wireframe)
+    if(!is_wireframe){
     	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    	glEnable(GL_LIGHTING);
+	    if(!is_smooth)
+	    	glShadeModel(GL_FLAT);
+	    else
+	    	glShadeModel(GL_SMOOTH);
+    	if(is_adaptive)
+			drawTriangles();
+		else
+			drawPolygons();
+	}
     else{
+    	glColor3f(0.8f, 0.2f, 0.1f);
     	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    	glDisable(GL_LIGHTING);
+    	    		        if(is_adaptive)
+	        	drawTriangles();
+	        else
+	        	drawPolygons();
     	if (is_hidden){
 	        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
 	        glEnable(GL_POLYGON_OFFSET_FILL);
 	        glPolygonOffset(1.f,1.f);
 	        glColor3f(0.0f, 0.0f, 0.0f);
-	        drawPolygons();
-	        glColor3f(1.0f, 1.0f, 1.0f);
+	        if(is_adaptive)
+	        	drawTriangles();
+	        else
+	        	drawPolygons();
+	        glColor3f(0.8f, 0.2f, 0.1f);
 	        glDisable(GL_POLYGON_OFFSET_FILL);
     	}
+    	else{
+    		glColor3f(0.8f, 0.2f, 0.1f);
+
+	    }
     }
-    if(!is_smooth)
+/*    if(!is_smooth)
     	glShadeModel(GL_FLAT);
     else
-    	glShadeModel(GL_SMOOTH);
+    	glShadeModel(GL_SMOOTH);*/
     
 
 
     //glTranslatef(0,transy,0);
     //glTranslatef(0,0,zoom);
     //glScalef(1, 1, zoom);
-    if(!is_hidden || !is_wireframe){
-    	drawPolygons();
-    }
+
     glFlush();
     glutSwapBuffers();	
 
