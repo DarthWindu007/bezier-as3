@@ -24,7 +24,7 @@
 #include <GL/glut.h>
 #include <GL/glu.h>
 #endif
-#define PI 3.14159265 
+
 
 using namespace std;
 
@@ -152,83 +152,8 @@ void parse_file(string name){
 
 //---------------------------------------------------
 
-Point bezcurveinterp(vector<Point> curve, float u){
-	vector<Point> iter1;
-	vector<Point> iter2;
-	vector<Point> iter3;
 
-	for(int i = 0; i < curve.size()-1; i++){
-		//cout << curve[i]*(1.0f-u)+curve[i+1]*u << endl;
-		iter1.push_back(curve[i]*(1.0f-u)+curve[i+1]*u);
-	}
-	//exit(1);
-	for(int i = 0; i < iter1.size()-1; i++){
-		iter2.push_back(iter1[i]*(1.0f-u)+iter1[i+1]*u);
-		//cout << iter1[i]*(1.0f-u)+iter1[i+1]*u << endl;;
-	}
-	//exit(1);
-	for(int i = 0; i < iter2.size()-1; i++){
-		Point p = iter2[i]*(1.0f-u)+iter2[i+1]*u;
-		Vector n = 3*(iter2[i+1]-iter2[i]);
-		p.vn = n;
-		iter3.push_back(p);
-		//cout << iter2[i]*(1.0f-u)+iter2[i+1]*u << endl;
-	}
-	//exit(1);
-    //cout << "bez curve interp return value:     " << iter3.front().x << iter3.front().y << iter3.front().z << "---------" << endl;
-    //cout << endl;
-    //exit(1);
-	return iter3.front();
-}
-
-Point bezpatchinterp(Patch p, float u, float v){
-
-	vector<Point> vcurve;
-	vcurve.push_back(bezcurveinterp(p.patch[0],u));
-	vcurve.push_back(bezcurveinterp(p.patch[1],u));
-	vcurve.push_back(bezcurveinterp(p.patch[2],u));
-	vcurve.push_back(bezcurveinterp(p.patch[3],u));
-	//exit(1);
-	vector<Point> ucurve;
-	vector<Point> ucurve1;
-	vector<Point> ucurve2;
-	vector<Point> ucurve3;
-	vector<Point> ucurve4;
-
-    ucurve1.push_back(p.patch[0][0]);
-    ucurve1.push_back(p.patch[1][0]);
-    ucurve1.push_back(p.patch[2][0]);
-    ucurve1.push_back(p.patch[3][0]);
-    ucurve.push_back(bezcurveinterp(ucurve1,v));
-    ucurve2.push_back(p.patch[0][1]);
-    ucurve2.push_back(p.patch[1][1]);
-    ucurve2.push_back(p.patch[2][1]);
-    ucurve2.push_back(p.patch[3][1]);
-    ucurve.push_back(bezcurveinterp(ucurve2,v));
-    ucurve3.push_back(p.patch[0][2]);
-    ucurve3.push_back(p.patch[1][2]);
-    ucurve3.push_back(p.patch[2][2]);
-    ucurve3.push_back(p.patch[3][2]);
-    ucurve.push_back(bezcurveinterp(ucurve3,v));
-    ucurve4.push_back(p.patch[0][3]);
-    ucurve4.push_back(p.patch[1][3]);
-    ucurve4.push_back(p.patch[2][3]);
-    ucurve4.push_back(p.patch[3][3]);
-    ucurve.push_back(bezcurveinterp(ucurve4,v));
-
-    //cout << ucurve[0] << endl;
-	Point point = bezcurveinterp(vcurve,v);
-	//cout << point << endl;
-	Point normal = bezcurveinterp(ucurve,u);
-	Vector v1 = Vector(normal.x,normal.y,normal.z);
-	Vector v2 = Vector(point.x,point.y,point.z);
-	Vector n = (normal.vn^point.vn).norm();
-	point.vn = n;
-	//exit(1);
-	return point;
-}
-
-triPoint intTriP(triPoint p1, triPoint p2, Patch patch){
+triPoint getMidPoint(triPoint p1, triPoint p2, Patch patch){
     float newU = (p1.u + p2.u) * 0.5;
     float newV = (p1.v + p2.v) * 0.5;
 
@@ -240,100 +165,91 @@ triPoint intTriP(triPoint p1, triPoint p2, Patch patch){
     return toReturn;
 }
 
-bool goodEnough(triPoint thisPt, Patch p){
+bool isGoodSubdiv(triPoint thisPt, Patch p){
     Point midP = thisPt.p;
-    Point actualPt = bezpatchinterp(p,thisPt.u,thisPt.v);
+    Point actualPt = p.bezpatchinterp(thisPt.u,thisPt.v);
     float diff = pow((midP.x-actualPt.x),2) + pow((midP.y-actualPt.y),2) + pow((midP.z-actualPt.z),2);
     diff = sqrt(diff);
     if (diff < step_size) { return true;}
     if (diff >= step_size) { return false;}
 }
 
-triPoint actualOnCurve(triPoint p1, triPoint p2, Patch patch){
+triPoint getAdaptivePointOnCurve(triPoint p1, triPoint p2, Patch p){
     float newU = (p1.u + p2.u) * 0.5;
     float newV = (p1.v + p2.v) * 0.5;
-    Point thisPt = bezpatchinterp(patch,newU,newV);
+    Point thisPt = p.bezpatchinterp(newU,newV);
     triPoint toReturn = triPoint(thisPt,newU,newV);
     return toReturn;
 }
 
 
-void recF(tri t, Patch p, int depth){
-    triPoint pt1 = t.p1;
-    triPoint pt2 = t.p2;
-    triPoint pt3 = t.p3;
-    triPoint mp1 = intTriP(pt1,pt2,p);  // inTrip
-    triPoint mp2 = intTriP(pt2,pt3,p);
-    triPoint mp3 = intTriP(pt3,pt1,p);
+void makeAdaptiveTriangles_recursive(tri t, Patch p){
+    triPoint mp1 = getMidPoint(t.p1,t.p2,p);
+    triPoint mp2 = getMidPoint(t.p2,t.p3,p);
+    triPoint mp3 = getMidPoint(t.p3,t.p1,p);
     
-    bool g1 = goodEnough(mp1, p); // goodEngouh
-    bool g2 = goodEnough(mp2, p);
-    bool g3 = goodEnough(mp3, p);
-    
-    mp1 = actualOnCurve(pt1,pt2,p); // actuallyonn Curve
-    mp2 = actualOnCurve(pt2,pt3,p);
-    mp3 = actualOnCurve(pt3,pt1,p);
+    bool g1 = isGoodSubdiv(mp1,p);
+    bool g2 = isGoodSubdiv(mp2,p);
+    bool g3 = isGoodSubdiv(mp3,p);
+   
+    mp1 = getAdaptivePointOnCurve(t.p1,t.p2,p);
+    mp2 = getAdaptivePointOnCurve(t.p2,t.p3,p);
+    mp3 = getAdaptivePointOnCurve(t.p3,t.p1,p);
     
     
-    
-    
-    // cout << howGood(mp1, thisPatch) << howGood(mp2, thisPatch) << howGood(mp3, thisPatch) << endl;
-    // cout << pt2.xy.x << endl;
-    // cout << g1 << " " << g2 << " " << g3 << endl;
+
     
     if (!g1 && !g2 && !g3){ 
-        recF(tri(pt1,mp1,mp3),p, depth + 1);
-        recF(tri(mp1,mp3,mp2),p, depth + 1);
-        recF(tri(mp1,pt2,mp2),p, depth + 1);
-        recF(tri(mp3,mp2,pt3),p, depth + 1);
+        makeAdaptiveTriangles_recursive(tri(t.p1,mp1,mp3),p);
+        makeAdaptiveTriangles_recursive(tri(mp1,mp3,mp2),p);
+        makeAdaptiveTriangles_recursive(tri(mp1,t.p2,mp2),p);
+        makeAdaptiveTriangles_recursive(tri(mp3,mp2,t.p3),p);
         return;
     }
     else if (!g1 && !g2 && g3){
-        recF(tri(mp1,pt2,mp2),p, depth + 1);
-        recF(tri(pt1,mp1,mp2),p, depth + 1);
-        recF(tri(pt1,mp2,pt3),p, depth + 1);
+        makeAdaptiveTriangles_recursive(tri(mp1,t.p2,mp2),p);
+        makeAdaptiveTriangles_recursive(tri(t.p1,mp1,mp2),p);
+        makeAdaptiveTriangles_recursive(tri(t.p1,mp2,t.p3),p);
         return;
     }
     else if (!g1 && g2 && !g3){
-        recF(tri(pt1,mp1,mp3),p, depth + 1);
-        recF(tri(mp1,pt2,pt3),p, depth + 1);
-        recF(tri(mp1,pt3,mp3),p, depth + 1);
+        makeAdaptiveTriangles_recursive(tri(t.p1,mp1,mp3),p);
+        makeAdaptiveTriangles_recursive(tri(mp1,t.p2,t.p3),p);
+        makeAdaptiveTriangles_recursive(tri(mp1,t.p3,mp3),p);
         return;
     }
     else if (!g1 && g2 && g3){
-        recF(tri(pt1,mp1,pt3),p, depth + 1);
-        recF(tri(mp1,pt2,pt3),p, depth + 1);
+        makeAdaptiveTriangles_recursive(tri(t.p1,mp1,t.p3),p);
+        makeAdaptiveTriangles_recursive(tri(mp1,t.p2,t.p3),p);
         return;
     }
     else if (g1 && !g2 && !g3){
-        recF(tri(pt1,pt2,mp3),p, depth + 1);
-        recF(tri(pt2,mp2,mp3),p, depth + 1);
-        recF(tri(mp3,mp2,pt3),p, depth + 1);
+        makeAdaptiveTriangles_recursive(tri(t.p1,t.p2,mp3),p);
+        makeAdaptiveTriangles_recursive(tri(t.p2,mp2,mp3),p);
+        makeAdaptiveTriangles_recursive(tri(mp3,mp2,t.p3),p);
         return;
     }
     else if (g1 && !g2 && g3){
-        recF(tri(pt1,pt2,mp2),p, depth + 1);
-        recF(tri(pt1,mp2,pt3),p, depth + 1);
+        makeAdaptiveTriangles_recursive(tri(t.p1,t.p2,mp2),p);
+        makeAdaptiveTriangles_recursive(tri(t.p1,mp2,t.p3),p);
         return;
     }
     else if (g1 && g2 && !g3){
-        recF(tri(pt1,pt2,mp3),p, depth + 1);
-        recF(tri(mp3,pt2,pt3),p, depth + 1);
+        makeAdaptiveTriangles_recursive(tri(t.p1,t.p2,mp3),p);
+        makeAdaptiveTriangles_recursive(tri(mp3,t.p2,t.p3),p);
         return;
     }
     else if (g1 && g2 && g3){
         all_triangles.push_back(t);
         return;
     }
-    cout << "ERROR" << endl;
-    exit(0);
 }
 
 void adaptive(Patch p){
-    Point p1 = bezpatchinterp(p, 0, 0);
-    Point p2 = bezpatchinterp(p, 1, 0);
-    Point p3 = bezpatchinterp(p, 1, 1);
-    Point p4 = bezpatchinterp(p, 0, 1);
+    Point p1 = p.bezpatchinterp( 0, 0);
+    Point p2 = p.bezpatchinterp( 1, 0);
+    Point p3 = p.bezpatchinterp( 1, 1);
+    Point p4 = p.bezpatchinterp( 0, 1);
     
     triPoint pt1,pt2,pt3,pt4;
     
@@ -346,8 +262,8 @@ void adaptive(Patch p){
     
     tri t2 = tri(pt1,pt4,pt3);
     
-    recF(t1, p, 0);
-    recF(t2, p, 0);
+    makeAdaptiveTriangles_recursive(t1, p);
+    makeAdaptiveTriangles_recursive(t2, p);
 }
 
 
@@ -366,10 +282,10 @@ void subdividepatch(Patch p){
 			v = min(1.0f, j*step_size);
 			if(v==1.0f)
 				continue;
-			Point interp = bezpatchinterp(p,u,v);
+			Point interp = p.bezpatchinterp(u,v);
 			curve.push_back(interp);
 		}
-		Point interp = bezpatchinterp(p,u,1.0f);
+		Point interp = p.bezpatchinterp(u,1.0f);
 		curve.push_back(interp);
 		temp.patch.push_back(curve);		
 	}
@@ -377,10 +293,10 @@ void subdividepatch(Patch p){
 	for(int k = 0; k < polygons; k++){
 		v = k*step_size;
 		if(v==1.0f) continue;
-		Point interp = bezpatchinterp(p,1.0f,v);
+		Point interp = p.bezpatchinterp(1.0f,v);
 		curve2.push_back(interp);
 	}
-	Point interp = bezpatchinterp(p,1.0f,1.0f);
+	Point interp = p.bezpatchinterp(1.0f,1.0f);
 	curve2.push_back(interp);
 	temp.patch.push_back(curve2);
 	all_meshes.push_back(temp);

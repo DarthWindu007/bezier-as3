@@ -18,3 +18,4 @@ triPoint::triPoint(Point x, float i, float j){
 	u=i;
 	v=j;
 }
+
