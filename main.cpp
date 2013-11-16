@@ -230,9 +230,130 @@ Point bezpatchinterp(Patch p, float u, float v){
 	return point;
 }
 
-void adaptive(Patch p){
+triPoint intTriP(triPoint p1, triPoint p2, Patch patch){
+    float newU = (p1.u + p2.u) * 0.5;
+    float newV = (p1.v + p2.v) * 0.5;
 
+    Point newXY = (p1.xy + p2.xy) * 0.5;
+    newXY.vn.x =0;
+    newXY.vn.y =0;
+    newXY.vn.z =0;
+    triPoint toReturn = triPoint(newXY,newU,newV);
+    return toReturn;
 }
+
+bool goodEnough(triPoint thisPt, Patch p){
+    Point midP = thisPt.p;
+    Point actualPt = bezpatchinterp(p,thisPt.u,thisPt.v);
+    float diff = pow((midP.x-actualPt.x),2) + pow((midP.y-actualPt.y),2) + pow((midP.z-actualPt.z),2);
+    diff = sqrt(diff);
+    if (diff < step_size) { return true;}
+    if (diff >= step_size) { return false;}
+}
+
+triPoint actualOnCurve(triPoint p1, triPoint p2, Patch patch){
+    float newU = (p1.u + p2.u) * 0.5;
+    float newV = (p1.v + p2.v) * 0.5;
+    Point thisPt = bezpatchinterp(patch,newU,newV);
+    triPoint toReturn = triPoint(thisPt,newU,newV);
+    return toReturn;
+}
+
+
+void recF(triangle t, Patch p, int depth){
+    triPoint pt1 = t.p1;
+    triPoint pt2 = t.p2;
+    triPoint pt3 = t.p3;
+    triPoint mp1 = intTriP(pt1,pt2,p);  // inTrip
+    triPoint mp2 = intTriP(pt2,pt3,p);
+    triPoint mp3 = intTriP(pt3,pt1,p);
+    
+    bool g1 = goodEnough(mp1, p); // goodEngouh
+    bool g2 = goodEnough(mp2, p);
+    bool g3 = goodEnough(mp3, p);
+    
+    mp1 = actualOnCurve(pt1,pt2,p); // actuallyonn Curve
+    mp2 = actualOnCurve(pt2,pt3,p);
+    mp3 = actualOnCurve(pt3,pt1,p);
+    
+    if (debug){
+    drawTri(t);
+    if (depth >= limit) { return; } // implement limit
+    }
+    // cout << howGood(mp1, thisPatch) << howGood(mp2, thisPatch) << howGood(mp3, thisPatch) << endl;
+    // cout << pt2.xy.x << endl;
+    // cout << g1 << " " << g2 << " " << g3 << endl;
+    
+    if (!g1 && !g2 && !g3){ 
+        recF(triangle(pt1,mp1,mp3),thisPatch, depth + 1);
+        recF(triangle(mp1,mp3,mp2),thisPatch, depth + 1);
+        recF(triangle(mp1,pt2,mp2),thisPatch, depth + 1);
+        recF(triangle(mp3,mp2,pt3),thisPatch, depth + 1);
+        return;
+    }
+    else if (!g1 && !g2 && g3){
+        recF(triangle(mp1,pt2,mp2),thisPatch, depth + 1);
+        recF(triangle(pt1,mp1,mp2),thisPatch, depth + 1);
+        recF(triangle(pt1,mp2,pt3),thisPatch, depth + 1);
+        return;
+    }
+    else if (!g1 && g2 && !g3){
+        recF(triangle(pt1,mp1,mp3),thisPatch, depth + 1);
+        recF(triangle(mp1,pt2,pt3),thisPatch, depth + 1);
+        recF(triangle(mp1,pt3,mp3),thisPatch, depth + 1);
+        return;
+    }
+    else if (!g1 && g2 && g3){
+        recF(triangle(pt1,mp1,pt3),thisPatch, depth + 1);
+        recF(triangle(mp1,pt2,pt3),thisPatch, depth + 1);
+        return;
+    }
+    else if (g1 && !g2 && !g3){
+        recF(triangle(pt1,pt2,mp3),thisPatch, depth + 1);
+        recF(triangle(pt2,mp2,mp3),thisPatch, depth + 1);
+        recF(triangle(mp3,mp2,pt3),thisPatch, depth + 1);
+        return;
+    }
+    else if (g1 && !g2 && g3){
+        recF(triangle(pt1,pt2,mp2),thisPatch, depth + 1);
+        recF(triangle(pt1,mp2,pt3),thisPatch, depth + 1);
+        return;
+    }
+    else if (g1 && g2 && !g3){
+        recF(triangle(pt1,pt2,mp3),thisPatch, depth + 1);
+        recF(triangle(mp3,pt2,pt3),thisPatch, depth + 1);
+        return;
+    }
+    else if (g1 && g2 && g3){
+        setOfGoodEnoughTriangles.push_back(t);
+        return;
+    }
+    cout << "ERROR" << endl;
+    exit(0);
+}
+
+void adaptive(Patch p){
+    Point p1 = bezpatchinterp(p, 0, 0);
+    Point p2 = bezpatchinterp(p, 1, 0);
+    Point p3 = bezpatchinterp(p, 1, 1);
+    Point p4 = bezpatchinterp(p, 0, 1);
+    
+    triPoint pt1,pt2,pt3,pt4;
+    
+    pt1 = triPoint(p1,0,0);
+    pt2 = triPoint(p2,1,0);
+    pt3 = triPoint(p3,1,1);
+    pt4 = triPoint(p4,0,1);
+    
+    triangle t1 = tri(pt1,pt2,pt3);
+    
+    triangle t2 = tri(pt1,pt4,pt3);
+    
+    recF(t1, p, 0);
+    recF(t2, p, 0);
+}
+
+
 
 // given a patch, perform uniform subdivision 
 void subdividepatch(Patch p){
@@ -386,6 +507,8 @@ void initScene(){
     	if(is_adaptive){
     		adaptive(p);
     		continue;
+            
+
     	}
     	subdividepatch(p);
     }
