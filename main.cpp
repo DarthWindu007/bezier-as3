@@ -59,7 +59,7 @@ bool is_wireframe = false;
 bool is_smooth = false;
 bool is_hidden = false;
 bool do_calcs = false;
-bool is_animation = true;
+bool is_animation = false;
 int time_step = 0;
 Viewport viewport;
 GLfloat light_d[] = {0.8, 0.0, 1, 1.0};
