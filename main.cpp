@@ -49,12 +49,6 @@ ParametricPoint::ParametricPoint(float u, float v) {
 	this->u = u;
 	this->v = v;
 }
-class Triangle {
-public:
-	Triangle(pointNormal p1, ParametricPoint uv1, pointNormal p2, ParametricPoint uv2, pointNormal p3, ParametricPoint uv3);
-	vector<pointNormal> points;
-	vector<ParametricPoint> parametrics;
-};
 
 // ---------------------Global Variables -----------------------
 float step_size;
@@ -72,10 +66,12 @@ float roty = 0;
 float transx = 0;
 float transy = 0;
 float zoom = -5;
+int limit = 5;
 
 Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
 vector<Patch> all_meshes;
+vector<tri> all_triangles;
 
 vector <vector< vector<pointNormal> > > allOutputPoints;	
 
@@ -236,7 +232,7 @@ triPoint intTriP(triPoint p1, triPoint p2, Patch patch){
     float newU = (p1.u + p2.u) * 0.5;
     float newV = (p1.v + p2.v) * 0.5;
 
-    Point newXY = (p1.xy + p2.xy) * 0.5;
+    Point newXY = (p1.p + p2.p) * 0.5;
     newXY.vn.x =0;
     newXY.vn.y =0;
     newXY.vn.z =0;
@@ -262,7 +258,7 @@ triPoint actualOnCurve(triPoint p1, triPoint p2, Patch patch){
 }
 
 
-void recF(triangle t, Patch p, int depth){
+void recF(tri t, Patch p, int depth){
     triPoint pt1 = t.p1;
     triPoint pt2 = t.p2;
     triPoint pt3 = t.p3;
@@ -278,56 +274,55 @@ void recF(triangle t, Patch p, int depth){
     mp2 = actualOnCurve(pt2,pt3,p);
     mp3 = actualOnCurve(pt3,pt1,p);
     
-    if (debug){
-    drawTri(t);
-    if (depth >= limit) { return; } // implement limit
-    }
+    
+    
+    
     // cout << howGood(mp1, thisPatch) << howGood(mp2, thisPatch) << howGood(mp3, thisPatch) << endl;
     // cout << pt2.xy.x << endl;
     // cout << g1 << " " << g2 << " " << g3 << endl;
     
     if (!g1 && !g2 && !g3){ 
-        recF(triangle(pt1,mp1,mp3),thisPatch, depth + 1);
-        recF(triangle(mp1,mp3,mp2),thisPatch, depth + 1);
-        recF(triangle(mp1,pt2,mp2),thisPatch, depth + 1);
-        recF(triangle(mp3,mp2,pt3),thisPatch, depth + 1);
+        recF(tri(pt1,mp1,mp3),p, depth + 1);
+        recF(tri(mp1,mp3,mp2),p, depth + 1);
+        recF(tri(mp1,pt2,mp2),p, depth + 1);
+        recF(tri(mp3,mp2,pt3),p, depth + 1);
         return;
     }
     else if (!g1 && !g2 && g3){
-        recF(triangle(mp1,pt2,mp2),thisPatch, depth + 1);
-        recF(triangle(pt1,mp1,mp2),thisPatch, depth + 1);
-        recF(triangle(pt1,mp2,pt3),thisPatch, depth + 1);
+        recF(tri(mp1,pt2,mp2),p, depth + 1);
+        recF(tri(pt1,mp1,mp2),p, depth + 1);
+        recF(tri(pt1,mp2,pt3),p, depth + 1);
         return;
     }
     else if (!g1 && g2 && !g3){
-        recF(triangle(pt1,mp1,mp3),thisPatch, depth + 1);
-        recF(triangle(mp1,pt2,pt3),thisPatch, depth + 1);
-        recF(triangle(mp1,pt3,mp3),thisPatch, depth + 1);
+        recF(tri(pt1,mp1,mp3),p, depth + 1);
+        recF(tri(mp1,pt2,pt3),p, depth + 1);
+        recF(tri(mp1,pt3,mp3),p, depth + 1);
         return;
     }
     else if (!g1 && g2 && g3){
-        recF(triangle(pt1,mp1,pt3),thisPatch, depth + 1);
-        recF(triangle(mp1,pt2,pt3),thisPatch, depth + 1);
+        recF(tri(pt1,mp1,pt3),p, depth + 1);
+        recF(tri(mp1,pt2,pt3),p, depth + 1);
         return;
     }
     else if (g1 && !g2 && !g3){
-        recF(triangle(pt1,pt2,mp3),thisPatch, depth + 1);
-        recF(triangle(pt2,mp2,mp3),thisPatch, depth + 1);
-        recF(triangle(mp3,mp2,pt3),thisPatch, depth + 1);
+        recF(tri(pt1,pt2,mp3),p, depth + 1);
+        recF(tri(pt2,mp2,mp3),p, depth + 1);
+        recF(tri(mp3,mp2,pt3),p, depth + 1);
         return;
     }
     else if (g1 && !g2 && g3){
-        recF(triangle(pt1,pt2,mp2),thisPatch, depth + 1);
-        recF(triangle(pt1,mp2,pt3),thisPatch, depth + 1);
+        recF(tri(pt1,pt2,mp2),p, depth + 1);
+        recF(tri(pt1,mp2,pt3),p, depth + 1);
         return;
     }
     else if (g1 && g2 && !g3){
-        recF(triangle(pt1,pt2,mp3),thisPatch, depth + 1);
-        recF(triangle(mp3,pt2,pt3),thisPatch, depth + 1);
+        recF(tri(pt1,pt2,mp3),p, depth + 1);
+        recF(tri(mp3,pt2,pt3),p, depth + 1);
         return;
     }
     else if (g1 && g2 && g3){
-        setOfGoodEnoughTriangles.push_back(t);
+        all_triangles.push_back(t);
         return;
     }
     cout << "ERROR" << endl;
@@ -347,9 +342,9 @@ void adaptive(Patch p){
     pt3 = triPoint(p3,1,1);
     pt4 = triPoint(p4,0,1);
     
-    triangle t1 = tri(pt1,pt2,pt3);
+    tri t1 = tri(pt1,pt2,pt3);
     
-    triangle t2 = tri(pt1,pt4,pt3);
+    tri t2 = tri(pt1,pt4,pt3);
     
     recF(t1, p, 0);
     recF(t2, p, 0);
