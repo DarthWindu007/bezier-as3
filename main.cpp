@@ -13,6 +13,8 @@
 #include <list>
 #include <unistd.h>
 
+#include "tri.h"
+
 
 
 #ifdef OSX
@@ -61,6 +63,7 @@ int num_patches;
 bool uniform =true;
 bool is_wireframe = false;
 bool is_smooth = false;
+bool is_hidden = false;
 Viewport viewport;
 GLfloat light_d[] = {1.0, 0.0, 1, 1.0};
 GLfloat light_pos[] = {1.0, 1.0, 1.0, 0.0};
@@ -183,8 +186,7 @@ Point bezcurveinterp(vector<Point> curve, float u){
 }
 
 Point bezpatchinterp(Patch p, float u, float v){
-/*	p.toString();
-	exit(1);*/
+
 	vector<Point> vcurve;
 	vcurve.push_back(bezcurveinterp(p.patch[0],u));
 	vcurve.push_back(bezcurveinterp(p.patch[1],u));
@@ -330,7 +332,9 @@ void myKybdHndlr(unsigned char key, int x, int y){
 		is_wireframe = is_wireframe==false;
 	}
     
-    else if (key == 'h'){}
+    else if (key == 'h'){
+    	is_hidden = is_hidden == false;
+    }
 
     else if (key == 'q'){}
     
@@ -377,7 +381,7 @@ void initScene(){
 
 	//glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-	glLineWidth(0.5);
+	glLineWidth(1.0);
     glColor3f(1,1,1);
 
     for(int i = 0; i < all_patches.size(); i++){
@@ -393,9 +397,6 @@ void initScene(){
     drawPolygons();
 
 	//myReshape(viewport.w,viewport.h);
-
-
-
 }
 
 void myDisplay(){
@@ -410,24 +411,37 @@ void myDisplay(){
 	glLoadIdentity(); 
 
     glEnable(GL_LIGHTING);
+
+        glTranslatef(transx,transy,zoom);
+    glRotatef(roty,0,1,0);
+    glRotatef(rotx,1,0,0);
     if(!is_wireframe)
     	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-    else
+    else{
     	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    	if (is_hidden){
+	        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+	        glEnable(GL_POLYGON_OFFSET_FILL);
+	        glPolygonOffset(1.f,1.f);
+	        glColor3f(0.0f, 0.0f, 0.0f);
+	        drawPolygons();
+	        glColor3f(1.0f, 1.0f, 1.0f);
+	        glDisable(GL_POLYGON_OFFSET_FILL);
+    	}
+    }
     if(!is_smooth)
     	glShadeModel(GL_FLAT);
     else
     	glShadeModel(GL_SMOOTH);
     
-    glTranslatef(transx,transy,zoom);
-    glRotatef(roty,0,1,0);
-    glRotatef(rotx,1,0,0);
+
 
     //glTranslatef(0,transy,0);
     //glTranslatef(0,0,zoom);
     //glScalef(1, 1, zoom);
-    drawPolygons();
-
+    if(!is_hidden || !is_wireframe){
+    	drawPolygons();
+    }
     glFlush();
     glutSwapBuffers();	
 
