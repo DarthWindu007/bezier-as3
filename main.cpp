@@ -62,13 +62,13 @@ bool uniform =true;
 bool is_wireframe = false;
 bool is_smooth = false;
 Viewport viewport;
-GLfloat light_d[] = {0.2, 0.1, 1, 1.0};
+GLfloat light_d[] = {1.0, 0.0, 1, 1.0};
 GLfloat light_pos[] = {1.0, 1.0, 1.0, 0.0};
 float rotx = 0;
 float roty = 0;
 float transx = 0;
 float transy = 0;
-float zoom = 1;
+float zoom = -5;
 
 Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
@@ -315,19 +315,19 @@ void myKybdHndlr(unsigned char key, int x, int y){
 	if (key == ' ')
         exit(0);
     else if (key == '+'){
-    	zoom += 0.05;
+    	zoom += 0.5;
     }
 
     else if (key == '-'){
-    	zoom -= 0.05;
+    	zoom -= 0.5;
     }
 	
 	else if (key == 's'){
-		is_smooth == false;
+		is_smooth = is_smooth==false;
 	}
 	
 	else if (key == 'w'){
-		is_wireframe == false;
+		is_wireframe = is_wireframe==false;
 	}
     
     else if (key == 'h'){}
@@ -392,7 +392,7 @@ void initScene(){
 
     drawPolygons();
 
-	myReshape(viewport.w,viewport.h);
+	//myReshape(viewport.w,viewport.h);
 
 
 
@@ -410,17 +410,23 @@ void myDisplay(){
 	glLoadIdentity(); 
 
     glEnable(GL_LIGHTING);
-    glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-    glShadeModel(GL_FLAT);
+    if(!is_wireframe)
+    	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    else
+    	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    if(!is_smooth)
+    	glShadeModel(GL_FLAT);
+    else
+    	glShadeModel(GL_SMOOTH);
     
+    glTranslatef(transx,transy,zoom);
     glRotatef(roty,0,1,0);
     glRotatef(rotx,1,0,0);
-    glTranslatef(transx,transy,zoom);
+
     //glTranslatef(0,transy,0);
     //glTranslatef(0,0,zoom);
     //glScalef(1, 1, zoom);
-
-	drawPolygons();
+    drawPolygons();
 
     glFlush();
     glutSwapBuffers();	
