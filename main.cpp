@@ -58,15 +58,18 @@ bool uniform =true;
 bool is_wireframe = false;
 bool is_smooth = false;
 bool is_hidden = false;
+bool do_calcs = false;
+bool is_animation = false;
+int time_step = 0;
 Viewport viewport;
 GLfloat light_d[] = {0.8, 0.0, 1, 1.0};
-GLfloat light_pos[] = {1.0, 1.0, 1.0, 0.0};
-float rotx = 0;
+GLfloat light_pos[] = {0.2, 0.4, 1.0, 0.0};
+float rotx = -90;
 float roty = 0;
 float transx = 0;
-float transy = 0;
-float zoom = -5;
-int limit = 5;
+float transy = -0.5;
+float zoom = -7;
+
 
 Patch newPatch; // used in parser and added to all_patches periodically
 vector<Patch> all_patches;
@@ -151,6 +154,7 @@ void parse_file(string name){
 }
 
 //---------------------------------------------------
+
 
 
 triPoint getMidPoint(triPoint p1, triPoint p2, Patch patch){
@@ -315,38 +319,41 @@ void myReshape(int w, int h){
 }
 void myKybdHndlr(int key, int x, int y){
 
-	int modifier = glutGetModifiers();
-    if (key == GLUT_KEY_UP){
-    	if(modifier == 1)
-    		transy += 1;
-    	else
-    		rotx += 2.5;
-    }
-    else if (key == GLUT_KEY_DOWN){
-    	if(modifier == 1)
-    		transy -= 1;
-    	else
-    		rotx -= 2.5;
-    }	
-    else if (key == GLUT_KEY_LEFT){
-    	if(modifier == 1)
-    		transx -= 1;
-    	else
-    		roty += 2.5;
-    }	    
-    else if (key == GLUT_KEY_RIGHT){
-    	if(modifier == 1)
-    		transx += 1;
-    	else
-    		roty -= 2.5;
-    }
-    else 
-        return;
-    
-    glutPostRedisplay ();
+	if(!is_animation){	
+		int modifier = glutGetModifiers();
+		    if (key == GLUT_KEY_UP){
+		    	if(modifier == 1)
+		    		transy += 1;
+		    	else
+		    		rotx += 2.5;
+		    }
+		    else if (key == GLUT_KEY_DOWN){
+		    	if(modifier == 1)
+		    		transy -= 1;
+		    	else
+		    		rotx -= 2.5;
+		    }	
+		    else if (key == GLUT_KEY_LEFT){
+		    	if(modifier == 1)
+		    		transx -= 1;
+		    	else
+		    		roty += 2.5;
+		    }	    
+		    else if (key == GLUT_KEY_RIGHT){
+		    	if(modifier == 1)
+		    		transx += 1;
+		    	else
+		    		roty -= 2.5;
+		    }
+		    else 
+		        return;
+		    
+		    glutPostRedisplay ();
+		}
 }
 void myKybdHndlr(unsigned char key, int x, int y){
-	if (key == ' ')
+	if(!is_animation)
+{	if (key == ' ')
         exit(0);
     else if (key == '+'){
     	zoom += 0.5;
@@ -368,12 +375,22 @@ void myKybdHndlr(unsigned char key, int x, int y){
     	is_hidden = is_hidden == false;
     }
 
-    else if (key == 'q'){}
+    else if (key == 'a'){
+    	if(is_adaptive){
+    		step_size = step_size * 10.0f;
+    	}
+    	else{
+    		step_size = step_size/10.0f;
+    	}
+    	cout << "New Step Size is: " << step_size << endl;
+    	is_adaptive = is_adaptive == false;
+    	do_calcs = true;
+    }
     
     else 
         return;
     
-    glutPostRedisplay();
+    glutPostRedisplay();}
 }
 
 void drawPolygons(){
@@ -424,6 +441,19 @@ void drawTriangles(){
 	}
 }
 
+void doHidden(){
+        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(1.f,1.f);
+    glColor3f(0.0f, 0.0f, 0.0f);
+    if(is_adaptive)
+    	drawTriangles();
+    else
+    	drawPolygons();
+    glColor3f(0.8f, 0.2f, 0.1f);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+}
+
 void initScene(){
 
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_d);
@@ -451,11 +481,91 @@ void initScene(){
     }
 
     drawPolygons();
+    do_calcs = false;
 
 	//myReshape(viewport.w,viewport.h);
 }
 
+void reset(){
+	is_hidden = false;
+	is_smooth = false;
+	is_wireframe = false;
+	time_step = -1;
+	rotx = -90;
+	roty = 0;
+	transx = 0;
+	transy = -0.5;
+	zoom = -7;
+}
+
+void doNoWireFrame(){
+	    	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    	glEnable(GL_LIGHTING);
+	    if(!is_smooth)
+	    	glShadeModel(GL_FLAT);
+	    else
+	    	glShadeModel(GL_SMOOTH);
+    	if(is_adaptive)
+			drawTriangles();
+		else
+			drawPolygons();
+}
+
+void doWireFrame(){
+	    	glColor3f(0.8f, 0.2f, 0.1f);
+    	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    	glDisable(GL_LIGHTING);
+    	    		        if(is_adaptive)
+	        	drawTriangles();
+	        else
+	        	drawPolygons();
+    	if (is_hidden){
+    		doHidden();
+    	}
+    	else{
+    		glColor3f(0.8f, 0.2f, 0.1f);
+
+	    }
+}
+
 void myDisplay(){
+
+	if(do_calcs){
+		for(int i = 0; i < all_patches.size(); i++){
+	    	Patch p;
+	    	p.patch = (all_patches[i]).patch;
+	    	if(is_adaptive){
+	    		adaptive(p);
+	    		continue;
+	    	}
+	    	subdividepatch(p);
+	    }
+
+	    drawPolygons();
+	    do_calcs = false;
+	}
+
+	if(is_animation){
+		time_step++;
+		if(time_step < 180){
+			roty += 1;
+		} else if(time_step < 360){
+			rotx += 1;
+			is_smooth = true;
+		} else if(time_step < 400){
+			transy += 0.1;
+		} else if(time_step < 500){
+			zoom -= 0.05;
+			is_wireframe = true;
+		} else if(time_step < 580){
+			zoom += 0.05;
+			is_hidden = true;
+		}
+		if(time_step > 580){
+			reset();
+		}
+		
+	}
 
     glClear(GL_COLOR_BUFFER_BIT);               
 	glClear(GL_DEPTH_BUFFER_BIT);
@@ -472,41 +582,10 @@ void myDisplay(){
     glRotatef(roty,0,1,0);
     glRotatef(rotx,1,0,0);
     if(!is_wireframe){
-    	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-    	glEnable(GL_LIGHTING);
-	    if(!is_smooth)
-	    	glShadeModel(GL_FLAT);
-	    else
-	    	glShadeModel(GL_SMOOTH);
-    	if(is_adaptive)
-			drawTriangles();
-		else
-			drawPolygons();
+    	doNoWireFrame();
 	}
     else{
-    	glColor3f(0.8f, 0.2f, 0.1f);
-    	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    	glDisable(GL_LIGHTING);
-    	    		        if(is_adaptive)
-	        	drawTriangles();
-	        else
-	        	drawPolygons();
-    	if (is_hidden){
-	        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-	        glEnable(GL_POLYGON_OFFSET_FILL);
-	        glPolygonOffset(1.f,1.f);
-	        glColor3f(0.0f, 0.0f, 0.0f);
-	        if(is_adaptive)
-	        	drawTriangles();
-	        else
-	        	drawPolygons();
-	        glColor3f(0.8f, 0.2f, 0.1f);
-	        glDisable(GL_POLYGON_OFFSET_FILL);
-    	}
-    	else{
-    		glColor3f(0.8f, 0.2f, 0.1f);
-
-	    }
+    	doWireFrame();
     }
 /*    if(!is_smooth)
     	glShadeModel(GL_FLAT);
@@ -548,8 +627,8 @@ int main(int argc, char** argv){
 	}
 
 
-    viewport.w = 600;
-    viewport.h = 600;
+    viewport.w = 800;
+    viewport.h = 800;
 	glutInit(&argc, argv);                        // This initializes glut  
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );  // Use a double-buffered window with red, green, and blue channels 
     glutInitWindowSize(viewport.w, viewport.h);   //The size and position of the window
@@ -563,7 +642,8 @@ int main(int argc, char** argv){
     glutKeyboardFunc(myKybdHndlr);
     glutSpecialFunc(myKybdHndlr);
     initScene();
-    //glutIdleFunc(myDisplay);
+    if(is_animation)
+    	glutIdleFunc(myDisplay);
     glutMainLoop();				    // infinite loop that will keep drawing and resizing
     return 0;  
 }
